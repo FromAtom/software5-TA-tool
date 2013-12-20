@@ -3,3 +3,4 @@ sample_data/*
 .DS_Store
 .#*
 /test/*
+*.txt
