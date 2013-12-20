@@ -26,31 +26,42 @@ class TermColor
   end
 end
 
+def print_blue_arrow
+  TermColor.blue
+  print "==> "
+  TermColor.reset
+end
+
+def print_green_arrow
+  TermColor.green
+  print "--> "
+  TermColor.reset
+end
+
+# ディレクトリ内を解析してMakefileを生成するクラス
 class MakefileGenerater
   def initialize(target_dir_path, makefile_path)
+    @target_name = File.basename(target_dir_path).gsub("/","")
     @target_dir_path = File.expand_path(target_dir_path)
     @makefile_path = File.expand_path(makefile_path)
-
   end
 
   def generate
     copy_makefile()
 
-    target = File.basename(@target_dir_path)
-
     src = []
     Dir.glob("#{@target_dir_path}/*.c").each do |file|
-      src << file.to_s
+      src << File.basename(file)
     end
 
     headers = []
-    Dir.glob("*.h").each do |file|
-      headers << file.to_s
+    Dir.glob("#{@target_dir_path}/*.h").each do |file|
+      headers << File.basename(file)
     end
 
     target_makefile_path = "#{@target_dir_path}/Makefile"
     buffer = File.open(target_makefile_path, "r").read()
-    buffer.gsub!("##TARGET", "TARGET = #{target}");
+    buffer.gsub!("##TARGET", "TARGET = #{@target_name}");
     buffer.gsub!("##SRCS", "SRCS = #{src.join(" ")}");
     buffer.gsub!("##HEADERS", "HEADERS = #{headers.join(" ")}");
 
@@ -59,14 +70,58 @@ class MakefileGenerater
     f.close()
   end
 
+  def get_target_name
+    return @target_name
+  end
+
   private
   def copy_makefile
     cp(@makefile_path, File.join(@target_dir_path, "Makefile"))
   end
 end
 
+# makeを実行するメソッド
+def do_make(target_dir_path)
+  current_dir = File.expand_path(".")
+  cd File.expand_path(target_dir_path)
+  print_green_arrow
+  print "make..."
+  STDOUT.flush
+  puts `make`
+  puts "DONE"
+  cd current_dir
+end
+
+def do_make_clean(target_dir_path)
+  current_dir = File.expand_path(".")
+  cd File.expand_path(target_dir_path)
+  print_green_arrow
+  print "make clean..."
+  STDOUT.flush
+
+  puts `make clean`
+  puts "DONE"
+  cd current_dir
+end
+
+def compile_mpl(path_to_mpls, path_to_exe)
+  result_file = "#{File.basename(path_to_exe)}.txt"
+  print_green_arrow
+  print "compile sample MPL (result file : #{result_file})..."
+  STDOUT.flush
+
+  Dir.glob("#{path_to_mpls}/*.mpl").each do |file|
+    `echo ------------------------------------ >> #{result_file}`
+    `echo #{file} ---------------------------- >> #{result_file}`
+    `#{path_to_exe} #{file} >> #{result_file}`
+    `echo ------------------------------------ >> #{result_file}`
+  end
+  puts "DONE"
+end
+
+# オプション
 config = {
-  :arg3 => 'value3',
+  :arg2 => "./sample_data",
 }
 
 # 必須オプションを設定する
@@ -76,8 +131,8 @@ OptionParser.new do |opts|
   begin
     # オプション情報を設定する
     opts = OptionParser.new
-    opts.on('-t ARG1', '--target ARG1', "[MUST] Path to target dir") { |v| config[:arg1] = v }
-    opts.on('-m ARG3', '--makefile ARG3', "[任意]ＺＺＺを指定する（デフォルト値：#{config[:arg3]}）") { |v| config[:arg3] = v }
+    opts.on('-t path/to/dir', '--target path/to/dir', "[MUST] Path to target dir") { |v| config[:arg1] = v }
+    opts.on('-m path/to/mpls_dir', '--target path/to/mpls_dir', "default : #{config[:arg2]}") { |v| config[:arg2] = v }
     opts.parse!(ARGV)
 
     # 必須オプションをチェックする
@@ -92,44 +147,22 @@ OptionParser.new do |opts|
   end
 end
 
-def color_print(message)
-  TermColor.green
-  print message
-  TermColor.reset
-end
+target_dir_path = config[:arg1]
 
-def color_puts(message)
-  TermColor.green
-  puts message
-  TermColor.reset
-end
+print_blue_arrow
+puts "target: #{config[:arg1]}"
 
+print_green_arrow
+print "setup Makefile generater..."
+STDOUT.flush
+makefile_generater = MakefileGenerater.new(target_dir_path, "./Makefile")
+puts "DONE"
 
-color_print "setup Makefile generater..."
-makefile_generater = MakefileGenerater.new(config[:arg1], "./Makefile")
-color_puts "DONE"
-
-
-color_print "generate Makefile..."
+print_green_arrow
+print "generate Makefile..."
+STDOUT.flush
 makefile_generater.generate
-color_puts "DONE"
+puts "DONE"
 
-#
-#URRENT_DIR = File.expand_path(".")
-#URRENT_DIR_NAME = File.basename(Dir.getwd)
-#ATA_DIR = File.expand_path("../data_set")
-#d DATA_DIR
-#p(File.join(CURRENT_DIR, "token-list.exe"), ".")
-#f File.exist?(File.join(DATA_DIR, "#{CURRENT_DIR_NAME}.txt"))
-# puts "delete old data...DONE"
-# `rm #{CURRENT_DIR_NAME}.txt`
-#nd
-#
-#rint "testing..."
-#ir.glob("*.mpl").each do |file|
-# `echo ------------------------------------ >> #{CURRENT_DIR_NAME}.txt`
-# `echo #{file} ---------------------------- >> #{CURRENT_DIR_NAME}.txt`
-# `./token-list.exe #{file} >> #{CURRENT_DIR_NAME}.txt`
-# `echo ------------------------------------ >> #{CURRENT_DIR_NAME}.txt`
-#nd
-#uts "DONE"
+do_make(target_dir_path)
+compile_mpl(config[:arg2], File.join(File.expand_path(target_dir_path), makefile_generater.get_target_name))
