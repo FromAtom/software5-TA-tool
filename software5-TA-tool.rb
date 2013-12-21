@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require "find"
 require "optparse"
 require "fileutils"
 include FileUtils
@@ -44,34 +45,42 @@ class MakefileGenerater
     @target_name = File.basename(target_dir_path).gsub("/","")
     @target_dir_path = File.expand_path(target_dir_path)
     @makefile_path = File.expand_path(makefile_path)
+    copy_makefile
+    @target_makefile_path = "#{@target_dir_path}/Makefile"
+    @buffer = File.open(@target_makefile_path, "r").read
   end
 
   def generate
-    copy_makefile()
+    generate_TARGET
+    generate_SRCS
+    generate_HEADERS
 
+    f = File.open(@target_makefile_path, "w")
+    f.write(@buffer)
+    f.close
+  end
+
+  private
+  def generate_TARGET
+    @buffer.gsub!("##TARGET", "TARGET = #{@target_name}")
+  end
+
+  private
+  def generate_SRCS
     src = []
     Dir.glob("#{@target_dir_path}/*.c").each do |file|
       src << File.basename(file)
     end
+    @buffer.gsub!("##SRCS", "SRCS = #{src.join(" ")}")
+  end
 
+  private
+  def generate_HEADERS
     headers = []
     Dir.glob("#{@target_dir_path}/*.h").each do |file|
       headers << File.basename(file)
     end
-
-    target_makefile_path = "#{@target_dir_path}/Makefile"
-    buffer = File.open(target_makefile_path, "r").read()
-    buffer.gsub!("##TARGET", "TARGET = #{@target_name}");
-    buffer.gsub!("##SRCS", "SRCS = #{src.join(" ")}");
-    buffer.gsub!("##HEADERS", "HEADERS = #{headers.join(" ")}");
-
-    f = File.open(target_makefile_path, "w")
-    f.write(buffer)
-    f.close()
-  end
-
-  def get_target_name
-    return @target_name
+    @buffer.gsub!("##HEADERS", "HEADERS = #{headers.join(" ")}")
   end
 
   private
@@ -80,48 +89,77 @@ class MakefileGenerater
   end
 end
 
-# makeを実行するメソッド
-def do_make(target_dir_path)
-  current_dir = File.expand_path(".")
-  cd File.expand_path(target_dir_path)
-  print_green_arrow
-  print "make..."
-  STDOUT.flush
-  puts `make`
-  puts "DONE"
-  cd current_dir
-end
-
-def do_make_clean(target_dir_path)
-  current_dir = File.expand_path(".")
-  cd File.expand_path(target_dir_path)
-  print_green_arrow
-  print "make clean..."
-  STDOUT.flush
-
-  puts `make clean`
-  puts "DONE"
-  cd current_dir
-end
-
-def compile_mpl(path_to_mpls, path_to_exe)
-  result_file = "#{File.basename(path_to_exe)}.txt"
-  print_green_arrow
-  print "compile sample MPL (result file : #{result_file})..."
-  STDOUT.flush
-
-  Dir.glob("#{path_to_mpls}/*.mpl").each do |file|
-    `echo ------------------------------------ >> #{result_file}`
-    `echo #{file} ---------------------------- >> #{result_file}`
-    `#{path_to_exe} #{file} >> #{result_file}`
-    `echo ------------------------------------ >> #{result_file}`
+class Manager
+  def initialize(target_dir_path, path_to_mpl, path_to_makefile_template)
+    print_green_arrow
+    print "setup Makefile generater..."
+    STDOUT.flush
+    @target_dir_path = target_dir_path
+    @path_to_mpl = path_to_mpl
+    @makefile_generater = MakefileGenerater.new(target_dir_path, path_to_makefile_template)
+    puts "DONE"
   end
-  puts "DONE"
+
+  def generate_makefile
+    print_green_arrow
+    print "generate Makefile..."
+    STDOUT.flush
+    @makefile_generater.generate
+    puts "DONE"
+  end
+
+  def do_make
+    current_dir = File.expand_path(".")
+    cd File.expand_path(@target_dir_path)
+    print_green_arrow
+    puts "make..."
+    STDOUT.flush
+    puts `make`
+    puts "DONE"
+    cd current_dir
+  end
+
+  def do_make_clean
+    current_dir = File.expand_path(".")
+    cd File.expand_path(@target_dir_path)
+    print_green_arrow
+    print "make clean..."
+    STDOUT.flush
+    puts `make clean`
+    puts "DONE"
+    cd current_dir
+  end
+
+  def compile_mpl
+    path_to_exe = File.join(@target_dir_path, File.basename(@target_dir_path))
+    result_file = "#{File.basename(path_to_exe)}.txt"
+
+    if File.exist?(result_file)
+      print_green_arrow
+      print "remove old result_file.txt..."
+      STDOUT.flush
+      rm result_file
+      puts "DONE"
+    end
+
+    print_green_arrow
+    print "compile sample MPL (result -> #{File.expand_path(result_file)})..."
+    STDOUT.flush
+
+    Dir.glob("#{@path_to_mpl}/*.mpl").each do |file|
+      `echo ++++++++++++++++++++++++++++++++++ >> #{result_file}`
+      `echo === #{file} === >> #{result_file}`
+      `#{path_to_exe} #{file} >> #{result_file}`
+      `echo ++++++++++++++++++++++++++++++++++ >> #{result_file}`
+    end
+    puts "DONE"
+  end
 end
 
 # オプション
 config = {
   :arg2 => "./sample_data",
+  :arg3 => "./Makefile",
 }
 
 # 必須オプションを設定する
@@ -132,7 +170,8 @@ OptionParser.new do |opts|
     # オプション情報を設定する
     opts = OptionParser.new
     opts.on('-t path/to/dir', '--target path/to/dir', "[MUST] Path to target dir") { |v| config[:arg1] = v }
-    opts.on('-m path/to/mpls_dir', '--target path/to/mpls_dir', "default : #{config[:arg2]}") { |v| config[:arg2] = v }
+    opts.on('-s path/to/mpl_dir', '--sample path/to/mpl_dir', "default : #{config[:arg2]}") { |v| config[:arg2] = v }
+    opts.on('-m path/to/Makefile_template', '--makefile path/to/Makefile_template', "default : #{config[:arg3]}") { |v| config[:arg3] = v }
     opts.parse!(ARGV)
 
     # 必須オプションをチェックする
@@ -148,21 +187,17 @@ OptionParser.new do |opts|
 end
 
 target_dir_path = config[:arg1]
+path_to_mpl = config[:arg2]
+path_to_makefile_template = config[:arg3]
 
-print_blue_arrow
-puts "target: #{config[:arg1]}"
-
-print_green_arrow
-print "setup Makefile generater..."
-STDOUT.flush
-makefile_generater = MakefileGenerater.new(target_dir_path, "./Makefile")
-puts "DONE"
-
-print_green_arrow
-print "generate Makefile..."
-STDOUT.flush
-makefile_generater.generate
-puts "DONE"
-
-do_make(target_dir_path)
-compile_mpl(config[:arg2], File.join(File.expand_path(target_dir_path), makefile_generater.get_target_name))
+Dir.glob("*").each do |dir|
+  if FileTest::directory?(dir) && /#{target_dir_path}/ =~ File.basename(dir)
+    exe_name = File.basename(dir)
+    print_blue_arrow
+    puts "target: #{exe_name}"
+    manager = Manager.new(dir, path_to_mpl, path_to_makefile_template)
+    manager.generate_makefile
+    manager.do_make
+    manager.compile_mpl
+  end
+end
