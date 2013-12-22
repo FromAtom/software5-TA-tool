@@ -123,7 +123,7 @@ class Manager
     current_dir = File.expand_path(".")
     cd File.expand_path(@target_dir_path)
     print_green_arrow
-    print "make clean..."
+    puts "make clean..."
     STDOUT.flush
     puts `make clean`
     puts "DONE"
@@ -160,6 +160,10 @@ end
 config = {
   :arg2 => "./sample_data",
   :arg3 => "./Makefile",
+  :no_generate => false,
+  :no_make => false,
+  :no_makeclean => false,
+  :no_test => false,
 }
 
 # 必須オプションを設定する
@@ -169,9 +173,27 @@ OptionParser.new do |opts|
   begin
     # オプション情報を設定する
     opts = OptionParser.new
-    opts.on('-t path/to/dir', '--target path/to/dir', "[MUST] Path to target dir") { |v| config[:arg1] = v }
-    opts.on('-s path/to/mpl_dir', '--sample path/to/mpl_dir', "default : #{config[:arg2]}") { |v| config[:arg2] = v }
-    opts.on('-m path/to/Makefile_template', '--makefile path/to/Makefile_template', "default : #{config[:arg3]}") { |v| config[:arg3] = v }
+    opts.on('-t path/to/dir', '--target path/to/dir', "[MUST] Path to target dir") do |v|
+      config[:arg1] = v
+    end
+    opts.on('-s path/to/mpl_dir', '--sample path/to/mpl_dir', "default : #{config[:arg2]}") do |v|
+      config[:arg2] = v
+    end
+    opts.on('-m path/to/Makefile_template', '--makefile path/to/Makefile_template', "default : #{config[:arg3]}") do |v|
+      config[:arg3] = v
+    end
+    opts.on('--no_generate', "default : #{config[:no_generate]}") do |v|
+      config[:no_generate] = v
+    end
+    opts.on('--no_make', "default : #{config[:no_make]}") do |v|
+      config[:no_make] = v
+    end
+    opts.on('--no_test', "default : #{config[:no_test]}") do |v|
+      config[:no_test] = v
+    end
+    opts.on('--no_makeclean', "default : #{config[:no_test]}") do |v|
+      config[:no_makeclean] = v
+    end
     opts.parse!(ARGV)
 
     # 必須オプションをチェックする
@@ -196,8 +218,9 @@ Dir.glob("*").each do |dir|
     print_blue_arrow
     puts "target: #{exe_name}"
     manager = Manager.new(dir, path_to_mpl, path_to_makefile_template)
-    manager.generate_makefile
-    manager.do_make
-    manager.compile_mpl
+    manager.generate_makefile unless config[:no_generate]
+    manager.do_make unless config[:no_make]
+    manager.compile_mpl unless config[:no_test]
+    manager.do_make_clean unless config[:no_makeclean]
   end
 end
