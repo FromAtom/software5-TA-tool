@@ -31,6 +31,16 @@ $ git clone git@github.com:FromAtom/software5-TA-tool.git
 └── software5-TA-tool.rb
 ```
 
+## やっておいた方が安心
+文字・改行コードの影響で、実行結果がおかしくなることがあります。
+
+```
+nkf -w -Lu *.mpl
+```
+とかやって、UTF-8-UNIXの文字・改行コードにしておくと、安心です。
+
+Shift_JISやCRLFに変更したい人は、`nkf -h`で調べてね。
+
 ## 基本コマンド
 
 ```
