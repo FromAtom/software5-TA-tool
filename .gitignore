@@ -1,6 +1,4 @@
-sample_data/*
-/test
 .DS_Store
 .#*
-/test/*
+
 *.txt
