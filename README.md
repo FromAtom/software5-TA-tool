@@ -32,7 +32,7 @@ $ git clone git@github.com:FromAtom/software5-TA-tool.git
 ```
 
 ## やっておいた方が安心
-文字・改行コードの影響で、実行結果がおかしくなることがあります。
+サンプルファイル（*.mpl）の文字・改行コードによっては、実行結果がおかしくなることがあります。
 
 ```
 nkf -w -Lu *.mpl
