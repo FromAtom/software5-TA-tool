@@ -65,7 +65,6 @@ class MakefileGenerater
     @buffer.gsub!("##TARGET", "TARGET = #{@target_name}")
   end
 
-  private
   def generate_SRCS
     src = []
     Dir.glob("#{@target_dir_path}/*.c").each do |file|
@@ -74,7 +73,6 @@ class MakefileGenerater
     @buffer.gsub!("##SRCS", "SRCS = #{src.join(" ")}")
   end
 
-  private
   def generate_HEADERS
     headers = []
     Dir.glob("#{@target_dir_path}/*.h").each do |file|
@@ -83,7 +81,6 @@ class MakefileGenerater
     @buffer.gsub!("##HEADERS", "HEADERS = #{headers.join(" ")}")
   end
 
-  private
   def copy_makefile
     cp(@makefile_path, File.join(@target_dir_path, "Makefile"))
   end
