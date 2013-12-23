@@ -210,7 +210,7 @@ path_to_mpl = config[:arg2]
 path_to_makefile_template = config[:arg3]
 
 Dir.glob("*").each do |dir|
-  if FileTest::directory?(dir) && /#{target_dir_path}/ =~ File.basename(dir)
+  if FileTest.directory?(dir) && /#{target_dir_path}/ =~ File.basename(dir)
     exe_name = File.basename(dir)
     print_blue_arrow
     puts "target: #{exe_name}"
