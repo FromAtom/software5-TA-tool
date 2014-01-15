@@ -111,7 +111,7 @@ class Manager
     print_green_arrow
     puts "make..."
     STDOUT.flush
-    puts `make`
+    puts `make >> make_result.txt 2> make_error.txt`
     puts "DONE"
     cd current_dir
   end
